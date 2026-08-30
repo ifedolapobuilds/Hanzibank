@@ -1,0 +1,16 @@
+{
+  "name": "HanziBank — Chinese Vocabulary Practice",
+  "short_name": "HanziBank",
+  "description": "Personal Mandarin Chinese vocabulary practice app with flip cards and matching games.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0812",
+  "theme_color": "#6c2ece",
+  "icons": [
+    {
+      "src": "/brand/Hanzibank Logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
