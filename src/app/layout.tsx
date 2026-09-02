@@ -11,8 +11,8 @@ export const metadata: Metadata = {
     "Personal Mandarin Chinese vocabulary practice web app with flip cards, matching games, tone diacritics, and cross-device sync.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/brand/Hanzibank monocol logomark_yellow.svg",
-    shortcut: "/brand/Hanzibank monocol logomark_yellow.svg",
+    icon: "/brand/Hanzibank monocol logomark _yellow.svg",
+    shortcut: "/brand/Hanzibank monocol logomark _yellow.svg",
     apple: "/brand/Hanzibank Logo.png",
   },
   appleWebApp: {

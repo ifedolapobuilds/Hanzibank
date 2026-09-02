@@ -19,7 +19,7 @@ export function BrandLogo({ variant = "full", height = 32, className = "" }: Bra
       <div className={`relative flex items-center justify-center ${className}`}>
         {/* Dynamic Logomark SVG based on theme */}
         <Image
-          src={isDark ? "/brand/Hanzibank monocol logomark_yellow.svg" : "/brand/Hanzibank monocol logomark_hot violet.svg"}
+          src={isDark ? "/brand/Hanzibank monocol logomark _yellow.svg" : "/brand/Hanzibank monocol logomark_hot violet.svg"}
           alt="HanziBank Logomark"
           width={height}
           height={height}
@@ -33,7 +33,7 @@ export function BrandLogo({ variant = "full", height = 32, className = "" }: Bra
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Image
-        src={isDark ? "/brand/Hanzibank monocol logo_yellow.svg" : "/brand/Hanzibank monocol logo_hot violet.svg"}
+        src={isDark ? "/brand/Hanzibank Logo _light.svg" : "/brand/Hanzibank Logo _dark.svg"}
         alt="HanziBank Logo"
         width={height * 5.76}
         height={height}
