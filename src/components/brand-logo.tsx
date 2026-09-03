@@ -33,7 +33,7 @@ export function BrandLogo({ variant = "full", height = 32, className = "" }: Bra
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <Image
-        src={isDark ? "/brand/Hanzibank Logo _light.svg" : "/brand/Hanzibank Logo _dark.svg"}
+        src={isDark ? "/brand/Hanzibank Logo _Light.svg" : "/brand/Hanzibank Logo _Dark.svg"}
         alt="HanziBank Logo"
         width={height * 5.76}
         height={height}
