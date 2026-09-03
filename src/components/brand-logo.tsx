@@ -23,7 +23,8 @@ export function BrandLogo({ variant = "full", height = 32, className = "" }: Bra
           alt="HanziBank Logomark"
           width={height}
           height={height}
-          className="h-auto w-auto object-contain"
+          className="object-contain"
+          style={{ height: `${height}px`, width: `${height}px` }}
           priority
         />
       </div>

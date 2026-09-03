@@ -281,7 +281,7 @@ export default function LandingPage() {
       <footer className="border-t border-border/50 py-8 bg-background">
         <div className="container max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <BrandLogo variant="mark" height={10} />
+            <BrandLogo variant="mark" height={30} />
             <span>© {new Date().getFullYear()} HanziBank. All rights reserved.</span>
           </div>
           <div className="flex items-center gap-4">
