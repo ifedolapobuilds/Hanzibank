@@ -24,6 +24,8 @@ interface NavbarProps {
   onOpenAuth?: () => void;
   onOpenAddModal?: () => void;
   onOpenImportModal?: () => void;
+  onExportJson?: () => void;
+  onSignOut?: () => void;
 }
 
 export function Navbar({
@@ -32,6 +34,8 @@ export function Navbar({
   onOpenAuth,
   onOpenAddModal,
   onOpenImportModal,
+  onExportJson,
+  onSignOut,
 }: NavbarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -39,7 +43,7 @@ export function Navbar({
   const navItems = [
     {
       name: "Word Bank",
-      href: "/",
+      href: "/bank",
       icon: Icons.Book,
     },
     {
@@ -101,7 +105,7 @@ export function Navbar({
             <Button
               onClick={onOpenAddModal}
               size="sm"
-              className="hidden sm:flex items-center gap-1.5 bg-primary text-primary-foreground font-semibold shadow-md shadow-primary/20 hover:bg-primary/90"
+              className="flex items-center gap-1.5 bg-primary text-primary-foreground font-medium shadow-md shadow-primary/20 hover:bg-primary/90"
             >
               <Icons.Plus size={16} />
               <span>Add Word</span>
@@ -114,10 +118,24 @@ export function Navbar({
               onClick={onOpenImportModal}
               variant="outline"
               size="sm"
-              className="hidden lg:flex items-center gap-1.5"
+              className="hidden sm:flex items-center gap-1.5"
             >
               <Icons.Upload size={15} />
               <span>Import</span>
+            </Button>
+          )}
+
+          {/* Quick Action: Export JSON */}
+          {onExportJson && (
+            <Button
+              onClick={onExportJson}
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex items-center gap-1.5"
+              title="Export word bank JSON backup"
+            >
+              <Icons.Download size={15} />
+              <span>Export</span>
             </Button>
           )}
 
@@ -167,22 +185,34 @@ export function Navbar({
                   Signed in as <strong className="text-foreground">{userEmail}</strong>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={onOpenAuth}>
-                  <Icons.User size={14} className="mr-2" />
-                  <span>Account Settings</span>
-                </DropdownMenuItem>
+                {onOpenAuth && (
+                  <DropdownMenuItem onClick={onOpenAuth}>
+                    <Icons.User size={14} className="mr-2" />
+                    <span>Account Settings</span>
+                  </DropdownMenuItem>
+                )}
+                {onSignOut && (
+                  <DropdownMenuItem
+                    onClick={onSignOut}
+                    className="text-destructive focus:text-destructive cursor-pointer"
+                  >
+                    <Icons.Rotate size={14} className="mr-2" />
+                    <span>Sign Out</span>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenAuth}
-              className="rounded-xl h-9 text-xs font-semibold border-border/80"
-            >
-              <Icons.User size={15} className="mr-1.5 text-muted-foreground" />
-              Sync / Cloud
-            </Button>
+            <Link href="/login">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-xl h-9 text-xs font-semibold border-border/80 gap-1.5"
+              >
+                <Icons.User size={15} className="text-muted-foreground" />
+                <span>Log In</span>
+              </Button>
+            </Link>
           )}
         </div>
       </div>

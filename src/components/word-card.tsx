@@ -131,8 +131,8 @@ export function WordCard({ word, onEdit, onDelete, onReviewed }: WordCardProps) 
                     accuracy >= 80
                       ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                       : accuracy >= 50
-                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
                   )}
                 >
                   {accuracy}% accuracy

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Icons } from "@/components/icons";
 import { useWords } from "@/hooks/use-words";
+import { useAuth } from "@/hooks/use-auth";
 import { formatTime, cn } from "@/lib/utils";
 import { WordItem } from "@/lib/constants/categories";
 
@@ -32,6 +33,7 @@ interface GameCard {
 
 export default function MatchingGamePage() {
   const { words, recordMatch } = useWords();
+  const { user, signOut } = useAuth();
 
   // Setup options
   const [pairingMode, setPairingMode] = useState<PairingMode>("english-character");
@@ -197,7 +199,11 @@ export default function MatchingGamePage() {
 
   return (
     <>
-      <Navbar totalWords={words.length} />
+      <Navbar
+        totalWords={words.length}
+        userEmail={user?.email}
+        onSignOut={signOut}
+      />
 
       <main className="flex-1 container px-4 sm:px-8 py-6 space-y-6 max-w-4xl mx-auto pb-24 md:pb-12">
         {!isPlaying ? (
@@ -367,7 +373,7 @@ export default function MatchingGamePage() {
                         disabled={isMatched}
                         onClick={() => handleSelectCard(card)}
                         className={cn(
-                          "w-full p-4 rounded-2xl border text-left font-semibold transition-all duration-200 flex items-center justify-between min-h-[64px] sm:min-h-[72px] select-none",
+                          "w-full p-4 rounded-2xl border text-left font-medium transition-all duration-200 flex items-center justify-between min-h-[64px] sm:min-h-[72px] select-none",
                           isMatched
                             ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 opacity-60 pointer-events-none"
                             : isError
@@ -409,7 +415,7 @@ export default function MatchingGamePage() {
                         disabled={isMatched}
                         onClick={() => handleSelectCard(card)}
                         className={cn(
-                          "w-full p-4 rounded-2xl border text-left font-semibold transition-all duration-200 flex items-center justify-between min-h-[64px] sm:min-h-[72px] select-none",
+                          "w-full p-4 rounded-2xl border text-left font-medium transition-all duration-200 flex items-center justify-between min-h-[64px] sm:min-h-[72px] select-none",
                           isMatched
                             ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 opacity-60 pointer-events-none"
                             : isError

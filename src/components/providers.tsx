@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "@/hooks/use-auth";
+import { WordsProvider } from "@/hooks/use-words";
 
 type Theme = "dark" | "light" | "system";
 
@@ -62,7 +64,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider value={{ theme, setTheme }}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <WordsProvider>{children}</WordsProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </ThemeContext.Provider>
   );
 }

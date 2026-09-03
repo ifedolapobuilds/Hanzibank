@@ -9,10 +9,12 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Icons } from "@/components/icons";
 import { useWords } from "@/hooks/use-words";
+import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 
 export default function ReviewPage() {
   const { words, recordReview } = useWords();
+  const { user, signOut } = useAuth();
 
   const [filters, setFilters] = useState<PracticeFilters>({
     count: 10,
@@ -97,7 +99,11 @@ export default function ReviewPage() {
 
   return (
     <>
-      <Navbar totalWords={words.length} />
+      <Navbar
+        totalWords={words.length}
+        userEmail={user?.email}
+        onSignOut={signOut}
+      />
 
       <main className="flex-1 container px-4 sm:px-8 py-6 space-y-6 max-w-4xl mx-auto pb-24 md:pb-12">
         {!isPracticing ? (
@@ -279,7 +285,7 @@ export default function ReviewPage() {
                 <Button
                   size="lg"
                   onClick={handleNextCard}
-                  className="flex-1 rounded-2xl h-12 gap-2 bg-primary text-primary-foreground font-semibold"
+                  className="flex-1 rounded-2xl h-12 gap-2 bg-primary text-primary-foreground font-medium"
                 >
                   <span>Next Card</span>
                   <Icons.ArrowRight size={18} />
@@ -288,7 +294,7 @@ export default function ReviewPage() {
                 <Button
                   size="lg"
                   onClick={() => setIsPracticing(false)}
-                  className="flex-1 rounded-2xl h-12 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow"
+                  className="flex-1 rounded-2xl h-12 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow"
                 >
                   <Icons.Check size={18} />
                   <span>Finish Review</span>

@@ -35,7 +35,7 @@ interface ImportDialogProps {
       tags?: string[];
       notes?: string;
     }>
-  ) => void;
+  ) => Promise<any> | void;
   existingEnglishWords: string[];
 }
 
@@ -61,75 +61,100 @@ export function ImportDialog({
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   const resetState = () => {
     setFile(null);
     setParsedRows([]);
     setIsProcessing(false);
+    setParseError(null);
+    setDbError(null);
+  };
+
+  const convertNumberedToDiacriticPinyin = (pinyin: string) => {
+    // Simple helper if you need to transform pinyin, otherwise return as is
+    return pinyin;
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
     setFile(selected);
+    setParseError(null);
+    setDbError(null);
     setIsProcessing(true);
 
-    const fileName = selected.name.toLowerCase();
-
-    if (fileName.endsWith(".json")) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const json = JSON.parse(event.target?.result as string);
-          if (Array.isArray(json)) {
-            processRawData(json);
-          } else {
-            alert("Invalid JSON format. Expected an array of word objects.");
-          }
-        } catch (err) {
-          alert("Error parsing JSON file: " + (err as Error).message);
-        } finally {
-          setIsProcessing(false);
-        }
-      };
-      reader.readAsText(selected);
+    const ext = selected.name.split(".").pop()?.toLowerCase();
+    if (ext === "json") {
+      parseJsonFile(selected);
     } else {
-      // Parse CSV via PapaParse
-      Papa.parse(selected, {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header.trim().toLowerCase(),
-        complete: (results) => {
-          processRawData(results.data as any[]);
-          setIsProcessing(false);
-        },
-        error: (err) => {
-          alert("CSV Parsing Error: " + err.message);
-          setIsProcessing(false);
-        },
-      });
+      parseCsvFile(selected);
     }
   };
 
-  const processRawData = (rawList: any[]) => {
-    const existingSet = new Set(
-      existingEnglishWords.map((w) => w.trim().toLowerCase())
-    );
+  const parseJsonFile = (jsonFile: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const parsed = JSON.parse(text);
+        if (!Array.isArray(parsed)) {
+          throw new Error("JSON file must contain an array of word objects.");
+        }
+        processRawItems(parsed);
+      } catch (err: any) {
+        setParseError(err.message || "Failed to parse JSON file.");
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+    reader.onerror = () => {
+      setParseError("Could not read file from disk.");
+      setIsProcessing(false);
+    };
+    reader.readAsText(jsonFile);
+  };
 
-    const rows: ParsedRow[] = rawList.map((item) => {
-      const english = (item.english || "").toString().trim();
-      const pinyin = (item.pinyin || "").toString().trim();
-      const character = (item.character || item.hanzi || item.chinese || "").toString().trim();
-      const category = (item.category || "").toString().trim() || "miscellaneous";
-      
+  const parseCsvFile = (csvFile: File) => {
+    Papa.parse(csvFile, {
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim().toLowerCase(),
+      complete: (results) => {
+        if (results.errors.length > 0 && results.data.length === 0) {
+          setParseError(results.errors[0]?.message || "Failed to parse CSV.");
+          setIsProcessing(false);
+          return;
+        }
+        processRawItems(results.data);
+        setIsProcessing(false);
+      },
+      error: (err) => {
+        setParseError(err.message || "CSV parse error.");
+        setIsProcessing(false);
+      },
+    });
+  };
+
+  const processRawItems = (items: any[]) => {
+    const rows: ParsedRow[] = items.map((item) => {
+      const english = String(item.english || "").trim();
+      const pinyin = String(item.pinyin || "").trim();
+      const character = String(item.character || item.hanzi || item.chinese || "").trim();
+      const category = String(item.category || "miscellaneous").trim();
+
       let tags: string[] = [];
       if (Array.isArray(item.tags)) {
-        tags = item.tags.map((t: any) => t.toString().trim());
+        tags = item.tags.map((t: any) => String(t).trim()).filter(Boolean);
       } else if (typeof item.tags === "string" && item.tags.trim()) {
-        tags = item.tags.split(/[;,]/).map((t: string) => t.trim()).filter(Boolean);
+        tags = item.tags
+          .split(/[;,]/)
+          .map((t: string) => t.trim())
+          .filter(Boolean);
       }
 
-      const notes = (item.notes || item.note || "").toString().trim();
+      const notes = String(item.notes || item.note || "").trim();
 
       const missingFields: string[] = [];
       if (!english) missingFields.push("english");
@@ -137,13 +162,15 @@ export function ImportDialog({
       if (!character) missingFields.push("character");
 
       const isValid = missingFields.length === 0;
-      const isDuplicate = existingSet.has(english.toLowerCase());
+      const isDuplicate = existingEnglishWords.some(
+        (w) => w.trim().toLowerCase() === english.toLowerCase()
+      );
 
       return {
         english,
-        pinyin,
+        pinyin: convertNumberedToDiacriticPinyin(pinyin),
         character,
-        category,
+        category: category || "miscellaneous",
         tags,
         notes,
         isValid,
@@ -163,24 +190,38 @@ export function ImportDialog({
   const duplicateCount = parsedRows.filter((r) => r.isValid && r.isDuplicate).length;
   const invalidCount = parsedRows.filter((r) => !r.isValid).length;
 
-  const handleCommit = () => {
+  const handleCommit = async () => {
     if (validRows.length === 0) return;
-    onImport(
-      validRows.map((r) => ({
-        english: r.english,
-        pinyin: r.pinyin,
-        character: r.character,
-        category: r.category,
-        tags: r.tags,
-        notes: r.notes,
-      }))
-    );
-    resetState();
-    onClose();
+    setDbError(null);
+    setIsProcessing(true);
+
+    try {
+      await onImport(
+        validRows.map((r) => ({
+          english: r.english,
+          pinyin: r.pinyin,
+          character: r.character,
+          category: r.category,
+          tags: r.tags,
+          notes: r.notes,
+        }))
+      );
+      resetState();
+      onClose();
+    } catch (err: any) {
+      console.error("Bulk import database error:", err);
+      setDbError(
+        err.message?.includes("user_english_idx") || err.code === "23505"
+          ? "Import stopped: One or more words already exist in your word bank. Please enable 'Skip Duplicate English Words'."
+          : err.message || "Failed to write imported rows to the database. Please check your connection."
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && (resetState(), onClose())}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isProcessing && (resetState(), onClose())}>
       <DialogContent className="sm:max-w-[720px] max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -193,6 +234,13 @@ export function ImportDialog({
             Import multiple vocabulary entries at once. Required headers: <code>english</code>, <code>pinyin</code>, <code>character</code>.
           </DialogDescription>
         </DialogHeader>
+
+        {dbError && (
+          <div className="p-3 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs flex items-center gap-2 my-2">
+            <Icons.Shield size={16} className="shrink-0" />
+            <span>{dbError}</span>
+          </div>
+        )}
 
         {!file ? (
           <div className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-center hover:border-primary/50 transition-colors bg-muted/20 my-4">
@@ -340,9 +388,16 @@ export function ImportDialog({
             type="button"
             disabled={validRows.length === 0 || isProcessing}
             onClick={handleCommit}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow min-w-[150px]"
           >
-            Import {validRows.length} Words
+            {isProcessing ? (
+              <span className="flex items-center gap-2">
+                <Icons.Rotate size={16} className="animate-spin" />
+                <span>Importing...</span>
+              </span>
+            ) : (
+              `Import ${validRows.length} Words`
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

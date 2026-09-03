@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,7 @@ interface AddWordDialogProps {
     category: string;
     tags: string[];
     notes?: string;
-  }) => void;
+  }) => Promise<any> | void;
   onUpdate?: (
     id: string,
     wordData: {
@@ -47,9 +47,9 @@ interface AddWordDialogProps {
       tags: string[];
       notes?: string;
     }
-  ) => void;
-  editingWord?: WordItem | null;
+  ) => Promise<any> | void;
   isDuplicateEnglish: (english: string, excludeId?: string) => boolean;
+  editingWord?: WordItem | null;
 }
 
 export function AddWordDialog({
@@ -57,60 +57,76 @@ export function AddWordDialog({
   onClose,
   onSave,
   onUpdate,
-  editingWord,
   isDuplicateEnglish,
+  editingWord,
 }: AddWordDialogProps) {
   const [english, setEnglish] = useState("");
   const [pinyin, setPinyin] = useState("");
   const [character, setCharacter] = useState("");
   const [category, setCategory] = useState("greetings");
-  const [tagInput, setTagInput] = useState("");
+  const [isCustomCat, setIsCustomCat] = useState(false);
+  const [customCategory, setCustomCategory] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [notes, setNotes] = useState("");
   const [allowDuplicate, setAllowDuplicate] = useState(false);
-  const [customCategory, setCustomCategory] = useState("");
-  const [isCustomCat, setIsCustomCat] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingWord) {
       setEnglish(editingWord.english);
       setPinyin(editingWord.pinyin);
       setCharacter(editingWord.character);
-      if (DEFAULT_CATEGORIES.includes(editingWord.category as any)) {
+      const isPredefined = DEFAULT_CATEGORIES.some(
+        (c) => c === editingWord.category
+      );
+      if (isPredefined) {
         setCategory(editingWord.category);
         setIsCustomCat(false);
+        setCustomCategory("");
       } else {
-        setCategory("custom");
-        setCustomCategory(editingWord.category);
         setIsCustomCat(true);
+        setCustomCategory(editingWord.category);
+        setCategory("custom");
       }
       setTags(editingWord.tags || []);
       setNotes(editingWord.notes || "");
       setAllowDuplicate(false);
+      setDbError(null);
     } else {
       setEnglish("");
       setPinyin("");
       setCharacter("");
       setCategory("greetings");
-      setCustomCategory("");
       setIsCustomCat(false);
+      setCustomCategory("");
       setTags([]);
       setNotes("");
       setAllowDuplicate(false);
+      setDbError(null);
     }
   }, [editingWord, isOpen]);
 
-  const charCount = getCharacterCount(character);
-  const convertedPinyin = convertNumberedToDiacriticPinyin(pinyin);
-  const isDuplicate = isDuplicateEnglish(english, editingWord?.id);
+  const convertedPinyin = useMemo(() => {
+    return convertNumberedToDiacriticPinyin(pinyin);
+  }, [pinyin]);
 
-  const handleAddTag = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const val = tagInput.trim().replace(/^#/, "");
-      if (val && !tags.includes(val)) {
-        setTags([...tags, val]);
-      }
+  const characterCount = useMemo(() => {
+    return getCharacterCount(character);
+  }, [character]);
+
+  const isDuplicate = useMemo(() => {
+    if (!english.trim()) return false;
+    return isDuplicateEnglish(english, editingWord?.id);
+  }, [english, isDuplicateEnglish, editingWord]);
+
+  const handleAddTag = (e: React.KeyboardEvent | React.MouseEvent) => {
+    if ("key" in e && e.key !== "Enter" && e.key !== ",") return;
+    e.preventDefault();
+    const clean = tagInput.trim().replace(/^#/, "").toLowerCase();
+    if (clean && !tags.includes(clean)) {
+      setTags([...tags, clean]);
       setTagInput("");
     }
   };
@@ -119,10 +135,13 @@ export function AddWordDialog({
     setTags(tags.filter((t) => t !== tagToRemove));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!english.trim() || !pinyin.trim() || !character.trim()) return;
     if (isDuplicate && !allowDuplicate) return;
+
+    setDbError(null);
+    setIsSubmitting(true);
 
     const finalCategory = isCustomCat
       ? customCategory.trim() || "miscellaneous"
@@ -137,16 +156,27 @@ export function AddWordDialog({
       notes: notes.trim(),
     };
 
-    if (editingWord && onUpdate) {
-      onUpdate(editingWord.id, payload);
-    } else {
-      onSave(payload);
+    try {
+      if (editingWord && onUpdate) {
+        await onUpdate(editingWord.id, payload);
+      } else {
+        await onSave(payload);
+      }
+      onClose();
+    } catch (err: any) {
+      console.error("Database submission error:", err);
+      setDbError(
+        err.message?.includes("user_english_idx") || err.code === "23505"
+          ? "A word with this English meaning already exists in your account."
+          : err.message || "Failed to save word to database. Please check your connection and try again."
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
       <DialogContent className="sm:max-w-[540px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
@@ -160,8 +190,14 @@ export function AddWordDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {dbError && (
+          <div className="p-3 rounded-xl bg-destructive/15 border border-destructive/30 text-destructive text-xs flex items-center gap-2">
+            <Icons.Alert size={16} className="shrink-0" />
+            <span>{dbError}</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
-          {/* English Input */}
           <div className="space-y-1.5">
             <Label htmlFor="english-input">
               English Meaning <span className="text-primary">*</span>
@@ -229,7 +265,7 @@ export function AddWordDialog({
                   Simplified Hanzi <span className="text-primary">*</span>
                 </Label>
                 <span className="text-[11px] font-medium text-primary">
-                  {charCount} {charCount === 1 ? "char" : "chars"}
+                  {characterCount} {characterCount === 1 ? "char" : "chars"}
                 </span>
               </div>
               <Input
@@ -332,14 +368,24 @@ export function AddWordDialog({
             <Button
               type="submit"
               disabled={
+                isSubmitting ||
                 !english.trim() ||
                 !pinyin.trim() ||
                 !character.trim() ||
                 (isDuplicate && !allowDuplicate)
               }
-              className="bg-primary text-primary-foreground font-semibold"
+              className="bg-primary text-primary-foreground font-medium min-w-[130px]"
             >
-              {editingWord ? "Save Changes" : "Add to Word Bank"}
+              {isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <Icons.Rotate size={16} className="animate-spin" />
+                  <span>Saving...</span>
+                </span>
+              ) : editingWord ? (
+                "Save Changes"
+              ) : (
+                "Add to Word Bank"
+              )}
             </Button>
           </DialogFooter>
         </form>

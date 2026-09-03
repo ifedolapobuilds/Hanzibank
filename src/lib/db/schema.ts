@@ -1,11 +1,18 @@
-import { pgTable, text, integer, timestamp, uuid, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, uuid, uniqueIndex, pgSchema } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+const authSchema = pgSchema("auth");
+const authUsers = authSchema.table("users", {
+  id: uuid("id").primaryKey(),
+});
 
 export const words = pgTable(
   "words",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => authUsers.id, { onDelete: "cascade" }),
     english: text("english").notNull(),
     pinyin: text("pinyin").notNull(),
     character: text("character").notNull(),

@@ -1,523 +1,305 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Navbar } from "@/components/navbar";
-import { WordCard } from "@/components/word-card";
-import { AddWordDialog } from "@/components/modals/add-word-dialog";
-import { ImportDialog } from "@/components/modals/import-dialog";
-import { AuthDialog } from "@/components/modals/auth-dialog";
+import React, { useState } from "react";
+import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Icons } from "@/components/icons";
-import { useWords } from "@/hooks/use-words";
-import { DEFAULT_CATEGORIES, WordItem } from "@/lib/constants/categories";
+import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/components/providers";
 
-type SortOption = "newest" | "oldest" | "alpha-asc" | "alpha-desc" | "category";
+export default function LandingPage() {
+  const { user, isLoading } = useAuth();
+  const { theme, setTheme } = useTheme();
 
-export default function WordBankPage() {
-  const {
-    words,
-    isLoading,
-    isDuplicateEnglish,
-    addWord,
-    updateWord,
-    deleteWord,
-    bulkImportWords,
-    recordReview,
-    exportAsJson,
-  } = useWords();
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedTag, setSelectedTag] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<SortOption>("newest");
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
-
-  // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingWord, setEditingWord] = useState<WordItem | null>(null);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  // Extract all unique tags
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    words.forEach((w) => {
-      w.tags?.forEach((t) => set.add(t));
-    });
-    return Array.from(set);
-  }, [words]);
-
-  // Filtered and Sorted words
-  const filteredWords = useMemo(() => {
-    let result = words.filter((w) => {
-      // Search query (English, Pinyin, or Character)
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesEnglish = w.english.toLowerCase().includes(q);
-        const matchesPinyin = w.pinyin.toLowerCase().includes(q);
-        const matchesChar = w.character.includes(q);
-        if (!matchesEnglish && !matchesPinyin && !matchesChar) {
-          return false;
-        }
-      }
-
-      // Category
-      if (selectedCategory !== "all" && w.category.toLowerCase() !== selectedCategory.toLowerCase()) {
-        return false;
-      }
-
-      // Tag
-      if (selectedTag !== "all" && !w.tags?.includes(selectedTag)) {
-        return false;
-      }
-
-      return true;
-    });
-
-    // Sorting
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case "newest":
-          return new Date(b.dateAdded).getTime() - new Date(a.dateAdded).getTime();
-        case "oldest":
-          return new Date(a.dateAdded).getTime() - new Date(b.dateAdded).getTime();
-        case "alpha-asc":
-          return a.english.localeCompare(b.english);
-        case "alpha-desc":
-          return b.english.localeCompare(a.english);
-        case "category":
-          return a.category.localeCompare(b.category);
-        default:
-          return 0;
-      }
-    });
-
-    return result;
-  }, [words, searchQuery, selectedCategory, selectedTag, sortBy]);
-
-  // Overall Stats
-  const totalReviews = useMemo(
-    () => words.reduce((acc, w) => acc + (w.timesReviewed || 0), 0),
-    [words]
-  );
-  const totalCorrect = useMemo(
-    () => words.reduce((acc, w) => acc + (w.timesCorrect || 0), 0),
-    [words]
-  );
-  const totalAttempts = useMemo(
-    () =>
-      words.reduce(
-        (acc, w) => acc + (w.timesCorrect || 0) + (w.timesIncorrect || 0),
-        0
-      ),
-    [words]
-  );
-  const overallAccuracy =
-    totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : null;
+  // Interactive Demo Card Flip State for the Hero
+  const [demoFlipped, setDemoFlipped] = useState(false);
 
   return (
-    <>
-      <Navbar
-        totalWords={words.length}
-        onOpenAddModal={() => {
-          setEditingWord(null);
-          setIsAddModalOpen(true);
-        }}
-        onOpenImportModal={() => setIsImportModalOpen(true)}
-        onOpenAuth={() => setIsAuthModalOpen(true)}
-      />
+    <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/20 selection:text-primary">
+      {/* Top Landing Navigation Header */}
+      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-lg">
+        <div className="container max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
+          <Link href="/" className="flex items-center gap-2.5 group transition-transform active:scale-95">
+            <BrandLogo variant="full" height={32} />
+          </Link>
 
-      <main className="flex-1 container px-4 sm:px-8 py-6 space-y-6 max-w-7xl mx-auto pb-24 md:pb-12">
-        {/* Metric Cards Banner */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <Card className="lg:col-span-7 bg-gradient-to-br from-primary/15 via-card to-card border-primary/25 shadow-sm p-6 sm:p-8 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Badge variant="violet" className="text-xs px-3 py-1 font-semibold shadow-sm">
-                  <Icons.Sparkles size={13} className="mr-1.5 inline text-yellow-400" />
-                  Mandarin Bank
-                </Badge>
-              </div>
-              <div className="space-y-2 pt-1">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground leading-tight">
-                  Vocabulary Management
-                </h1>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
-                  Maintain, review, and master your personal Chinese word bank with automatic tone diacritics, character breakdown, and cross-device synchronization.
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground"
+              title="Toggle theme"
+            >
+              {theme === "dark" ? <Icons.Moon size={18} className="text-yellow-400" /> : <Icons.Sun size={18} className="text-amber-500" />}
+            </Button>
 
-          <Card className="lg:col-span-5 p-6 sm:p-7 flex flex-col justify-between space-y-5 bg-card/80 backdrop-blur-sm">
-            <div className="flex items-center justify-between border-b pb-3.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Bank Performance Overview
-              </span>
-              <Badge variant="outline" className="text-[10px] bg-muted/60">
-                Live Stats
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <div className="space-y-1.5 p-3.5 rounded-xl bg-muted/40 border border-border/50">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Total Words
-                </div>
-                <div className="text-3xl sm:text-4xl font-extrabold text-foreground font-aeternum">
-                  {words.length}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  Active entries in bank
-                </div>
-              </div>
-
-              <div className="space-y-1.5 p-3.5 rounded-xl bg-muted/40 border border-border/50">
-                <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  Practice Accuracy
-                </div>
-                <div className="text-3xl sm:text-4xl font-extrabold text-emerald-600 dark:text-emerald-400 font-aeternum">
-                  {overallAccuracy !== null ? `${overallAccuracy}%` : "100%"}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  Across {totalReviews} reviews
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-
-        {/* Action Controls & Filters Bar */}
-        <div className="space-y-4">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Icons.Search
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                placeholder="Search English, Pinyin (nǐ hǎo), or Hanzi (你好)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-11 text-sm bg-card/70"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <Icons.X size={16} />
-                </button>
-              )}
-            </div>
-
-            {/* Quick Actions (Add Word, Import, Export) */}
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => {
-                  setEditingWord(null);
-                  setIsAddModalOpen(true);
-                }}
-                className="h-11 px-4 gap-2 bg-primary text-primary-foreground font-semibold shadow"
-              >
-                <Icons.Plus size={16} />
-                <span>Add Word</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={() => setIsImportModalOpen(true)}
-                className="h-11 px-3.5 gap-2 border-border/80"
-                title="Bulk CSV or JSON import"
-              >
-                <Icons.Upload size={16} />
-                <span className="hidden sm:inline">Import</span>
-              </Button>
-
-              <Button
-                variant="outline"
-                onClick={exportAsJson}
-                className="h-11 px-3.5 gap-2 border-border/80"
-                title="Export word bank JSON backup"
-              >
-                <Icons.Download size={16} />
-                <span className="hidden sm:inline">Export</span>
-              </Button>
-            </div>
+            {!isLoading && user ? (
+              <Link href="/bank">
+                <Button className="bg-primary text-primary-foreground font-medium shadow-md shadow-primary/20 hover:bg-primary/90 gap-1.5 rounded-xl h-9 text-xs sm:text-sm">
+                  <span>Enter App</span>
+                  <Icons.ArrowRight size={14} />
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button className="bg-primary text-primary-foreground font-medium shadow-md shadow-primary/20 hover:bg-primary/90 gap-1.5 rounded-xl h-9 text-xs sm:text-sm">
+                  <Icons.User size={14} />
+                  <span>Log In</span>
+                </Button>
+              </Link>
+            )}
           </div>
+        </div>
+      </header>
 
-          {/* Filter & View Mode Strip */}
-          <Card className="p-3.5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              {/* Category & Tag Dropdowns */}
-              <div className="flex items-center gap-2 flex-wrap text-xs">
-                <span className="text-muted-foreground font-semibold flex items-center gap-1">
-                  <Icons.Filter size={14} /> Category:
-                </span>
-                <div className="w-[180px]">
-                  <Select
-                    value={selectedCategory}
-                    onValueChange={(val) => setSelectedCategory(val)}
-                  >
-                    <SelectTrigger className="h-9 text-xs">
-                      <SelectValue placeholder="All Categories" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories ({words.length})</SelectItem>
-                      {DEFAULT_CATEGORIES.map((cat) => {
-                        const count = words.filter(
-                          (w) => w.category.toLowerCase() === cat.toLowerCase()
-                        ).length;
-                        if (count === 0) return null;
-                        return (
-                          <SelectItem key={cat} value={cat} className="capitalize text-xs">
-                            {cat} ({count})
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+      {/* Hero Section */}
+      <main className="flex-1">
+        <section className="relative overflow-hidden py-16 sm:py-24 lg:py-28">
+          {/* Subtle Ambient Background Gradients */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[350px] bg-primary/15 blur-[120px] rounded-full pointer-events-none -z-10" />
+          <div className="absolute top-1/3 right-1/4 w-[300px] h-[300px] bg-yellow-500/10 blur-[100px] rounded-full pointer-events-none -z-10" />
+
+          <div className="container max-w-6xl mx-auto px-4 sm:px-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+              {/* Left Hero Content */}
+              <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 bg-primary/10 text-primary text-xs font-semibold shadow-sm">
+                  <Icons.Sparkles size={14} className="text-yellow-400" />
+                  <span>Personal Mandarin Practice App</span>
                 </div>
 
-                {allTags.length > 0 && (
-                  <>
-                    <span className="text-muted-foreground font-semibold ml-2 flex items-center gap-1">
-                      <Icons.Tag size={13} /> Tag:
-                    </span>
-                    <div className="w-[140px]">
-                      <Select
-                        value={selectedTag}
-                        onValueChange={(val) => setSelectedTag(val)}
-                      >
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="All Tags" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Tags</SelectItem>
-                          {allTags.map((tag) => (
-                            <SelectItem key={tag} value={tag} className="text-xs">
-                              #{tag}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-              </div>
+                <h1 className="text-4xl sm:text-5xl lg:text-5xl font-medium tracking-tight text-foreground leading-[1.15]">
+                  Master Chinese Vocabulary,{" "}
+                  <span className="bg-gradient-to-r from-primary via-purple-400 to-yellow-400 bg-clip-text text-transparent">
+                    One Card at a Time.
+                  </span>
+                </h1>
 
-              {/* Sort & View Mode Switcher */}
-              <div className="flex items-center gap-3 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground font-semibold">Sort by:</span>
-                  <div className="w-[160px]">
-                    <Select
-                      value={sortBy}
-                      onValueChange={(val) => setSortBy(val as SortOption)}
-                    >
-                      <SelectTrigger className="h-9 text-xs">
-                        <SelectValue placeholder="Sort order" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest">Recently Added</SelectItem>
-                        <SelectItem value="oldest">Oldest First</SelectItem>
-                        <SelectItem value="alpha-asc">English (A → Z)</SelectItem>
-                        <SelectItem value="alpha-desc">English (Z → A)</SelectItem>
-                        <SelectItem value="category">Category</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <p className="text-base sm:text-md text-muted-foreground max-w-xl mx-auto lg:mx-0 leading-relaxed">
+                  Manage your personal Chinese word bank with automated tone diacritics, 3D interactive flip-card review, rapid matching games, and seamless cloud synchronization.
+                </p>
+
+                {/* Hero CTAs */}
+                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 pt-2">
+                  {!isLoading && user ? (
+                    <Link href="/bank" className="w-full sm:w-auto">
+                      <Button size="lg" className="w-full sm:w-auto h-12 px-6 bg-primary text-primary-foreground font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 gap-2 rounded-xl text-base">
+                        <span>Open Word Bank</span>
+                        <Icons.ArrowRight size={18} />
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Link href="/login" className="w-full sm:w-auto">
+                      <Button size="lg" className="w-full sm:w-auto h-12 px-6 bg-primary text-primary-foreground font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 gap-2 rounded-xl text-base">
+                        <span>Log In to Get Started</span>
+                        <Icons.ArrowRight size={18} />
+                      </Button>
+                    </Link>
+                  )}
+
+                  <a href="#features" className="w-full sm:w-auto">
+                    <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-5 border-border/80 rounded-xl text-sm font-medium">
+                      See How It Works
+                    </Button>
+                  </a>
+                </div>
+
+                {/* Micro social proof badges */}
+                <div className="flex items-center justify-center lg:justify-start gap-6 pt-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <Icons.Check size={15} className="text-emerald-500" />
+                    <span>Cross-Device Sync</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icons.Check size={15} className="text-emerald-500" />
+                    <span>Accurate Tone Diacritics</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Icons.Check size={15} className="text-emerald-500" />
+                    <span>PWA Installable</span>
                   </div>
                 </div>
+              </div>
 
-                {/* Grid / Table View Switcher */}
-                <div className="hidden sm:flex items-center rounded-xl bg-muted/60 p-1 border">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("grid")}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      viewMode === "grid"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    title="Grid view"
+              {/* Right Hero Interactive 3D Card Preview */}
+              <div className="lg:col-span-5 flex justify-center">
+                <div className="relative w-full max-w-[340px] perspective-1000">
+                  <div className="text-center pb-2 text-xs font-semibold text-muted-foreground flex items-center justify-center gap-1">
+                    <Icons.Rotate size={12} className="text-primary animate-pulse" />
+                    <span>Click card to test flip</span>
+                  </div>
+
+                  <div
+                    className={`relative w-full h-[280px] duration-500 transform-style-3d transition-transform cursor-pointer select-none ${demoFlipped ? "rotate-y-180" : ""
+                      }`}
+                    onClick={() => setDemoFlipped(!demoFlipped)}
                   >
-                    <Icons.Cards size={15} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("table")}
-                    className={`px-2.5 py-1 rounded-lg transition-all ${
-                      viewMode === "table"
-                        ? "bg-background text-foreground shadow-sm font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                    title="Table view"
-                  >
-                    <Icons.Book size={15} />
-                  </button>
+                    {/* Front: English */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden rounded-3xl border-2 border-border/80 bg-card p-6 flex flex-col justify-between shadow-2xl hover:border-primary/50 transition-all">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="outline" className="text-[11px] font-semibold bg-muted/60">
+                          Greetings
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">2 characters</span>
+                      </div>
+
+                      <div className="text-center space-y-1 my-auto">
+                        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                          English
+                        </span>
+                        <h3 className="text-3xl font-extrabold text-foreground">
+                          Hello
+                        </h3>
+                      </div>
+
+                      <div className="text-center text-xs text-primary font-medium flex items-center justify-center gap-1">
+                        <Icons.Rotate size={13} /> Tap to reveal Hanzi
+                      </div>
+                    </div>
+
+                    {/* Back: Pinyin + Hanzi */}
+                    <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-3xl border-2 border-primary/40 bg-gradient-to-b from-primary/10 via-card to-card p-6 flex flex-col justify-between shadow-2xl">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="violet" className="text-[11px] font-semibold">
+                          Greetings
+                        </Badge>
+                        <span className="text-xs text-emerald-500 font-medium">Mastered</span>
+                      </div>
+
+                      <div className="text-center space-y-1 my-auto">
+                        <span className="text-base font-semibold text-primary/90 tracking-wide">
+                          nǐ hǎo
+                        </span>
+                        <div className="hanzi-char text-5xl font-bold text-foreground font-hanzi">
+                          你好
+                        </div>
+                      </div>
+
+                      <div className="text-center text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Icons.Rotate size={13} /> Tap to flip back
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </section>
 
-        {/* Words Presentation (Grid vs Table) */}
-        {filteredWords.length > 0 ? (
-          viewMode === "grid" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredWords.map((word) => (
-                <WordCard
-                  key={word.id}
-                  word={word}
-                  onEdit={(w) => {
-                    setEditingWord(w);
-                    setIsAddModalOpen(true);
-                  }}
-                  onDelete={deleteWord}
-                  onReviewed={recordReview}
-                />
-              ))}
+        {/* Features Showcase Section */}
+        <section id="features" className="py-16 sm:py-20 bg-muted/20 border-t border-border/60">
+          <div className="container max-w-6xl mx-auto px-4 sm:px-8 space-y-12">
+            <div className="text-center space-y-3 max-w-2xl mx-auto">
+              <Badge variant="outline" className="text-xs font-semibold px-3 py-0.5">
+                Core Capabilities
+              </Badge>
+              <h2 className="text-3xl sm:text-4xl font-medium tracking-tight">
+                Everything you need to master your vocab
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Designed specifically for Chinese learners who want a clean, distraction-free environment for retaining vocabulary.
+              </p>
             </div>
-          ) : (
-            /* Table View */
-            <Card className="overflow-hidden shadow-sm">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>English</TableHead>
-                    <TableHead>Pinyin</TableHead>
-                    <TableHead>Hanzi</TableHead>
-                    <TableHead>Length</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Tags</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredWords.map((word) => (
-                    <TableRow key={word.id}>
-                      <TableCell className="font-semibold">{word.english}</TableCell>
-                      <TableCell className="font-medium text-muted-foreground">{word.pinyin}</TableCell>
-                      <TableCell className="hanzi-char text-lg font-bold text-primary">{word.character}</TableCell>
-                      <TableCell>{word.characterCount} char</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="capitalize text-[10px]">
-                          {word.category}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1 flex-wrap">
-                          {word.tags?.map((t) => (
-                            <span key={t} className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                              #{t}
-                            </span>
-                          ))}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setEditingWord(word);
-                            setIsAddModalOpen(true);
-                          }}
-                          className="h-8 px-2 text-xs"
-                        >
-                          <Icons.Edit size={13} className="mr-1" /> Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteWord(word.id)}
-                          className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
-                        >
-                          <Icons.Trash size={13} />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-          )
-        ) : (
-          <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed bg-muted/10 space-y-4 my-8">
-            <div className="p-4 rounded-full bg-primary/10 text-primary">
-              <Icons.Search size={32} />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Feature 1 */}
+              <Card className="p-6 space-y-4 bg-card/90 border-border/70 shadow-sm hover:shadow-md hover:border-primary/40 transition-all rounded-2xl">
+                <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <Icons.Book size={22} />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-bold">Personal Word Bank</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Store words with English meaning, Hanzi characters, and automatic Pinyin tone diacritics. Filter by category, tag, or character count.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Feature 2 */}
+              <Card className="p-6 space-y-4 bg-card/90 border-border/70 shadow-sm hover:shadow-md hover:border-primary/40 transition-all rounded-2xl">
+                <div className="h-11 w-11 rounded-xl bg-yellow-500/10 text-yellow-500 flex items-center justify-center">
+                  <Icons.Cards size={22} />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-bold">3D Flip-Card Review</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Test your memory with fluid 3D card flips. Build custom study sets by random sample, category, or focus on your weakest words.
+                  </p>
+                </div>
+              </Card>
+
+              {/* Feature 3 */}
+              <Card className="p-6 space-y-4 bg-card/90 border-border/70 shadow-sm hover:shadow-md hover:border-primary/40 transition-all rounded-2xl">
+                <div className="h-11 w-11 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                  <Icons.Game size={22} />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-lg font-bold">Matching Game</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Reinforce associations with speed matching between English, Pinyin, and Characters. Track round streaks and accuracy stats.
+                  </p>
+                </div>
+              </Card>
             </div>
-            <div className="space-y-1">
-              <CardTitle className="text-lg font-bold">No words found</CardTitle>
-              <CardDescription className="text-sm max-w-sm">
-                {searchQuery || selectedCategory !== "all" || selectedTag !== "all"
-                  ? "Try resetting your search filters or add a new word matching your query."
-                  : "Your word bank is currently empty. Add your first word or import a CSV file to get started."}
-              </CardDescription>
+
+            {/* Bottom CTA Banner */}
+            <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-primary/20 via-card to-card border border-primary/30 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md">
+              <div className="space-y-1.5 text-center sm:text-left">
+                <h3 className="text-3xl font-medium tracking-tight">
+                  Ready to practice your Chinese?
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Sign in with your email to start building and syncing your vocabulary bank.
+                </p>
+              </div>
+
+              {!isLoading && user ? (
+                <Link href="/bank" className="flex-shrink-0">
+                  <Button size="lg" className="h-11 px-6 bg-primary text-primary-foreground font-medium shadow-md hover:bg-primary/90 rounded-xl text-sm gap-2">
+                    <span>Enter Word Bank</span>
+                    <Icons.ArrowRight size={16} />
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/login" className="flex-shrink-0">
+                  <Button size="lg" className="h-11 px-6 bg-primary text-primary-foreground font-medium shadow-md hover:bg-primary/90 rounded-xl text-sm gap-2">
+                    <span>Log In to App</span>
+                    <Icons.ArrowRight size={16} />
+                  </Button>
+                </Link>
+              )}
             </div>
-            <Button
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedCategory("all");
-                setSelectedTag("all");
-                if (words.length === 0) {
-                  setIsAddModalOpen(true);
-                }
-              }}
-              className="bg-primary text-primary-foreground font-semibold"
-            >
-              {words.length === 0 ? "Add First Word" : "Clear Filters"}
-            </Button>
-          </Card>
-        )}
+          </div>
+        </section>
       </main>
 
-      {/* Add & Edit Modal */}
-      <AddWordDialog
-        isOpen={isAddModalOpen}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingWord(null);
-        }}
-        onSave={addWord}
-        onUpdate={updateWord}
-        editingWord={editingWord}
-        isDuplicateEnglish={isDuplicateEnglish}
-      />
-
-      {/* Bulk Importer Modal */}
-      <ImportDialog
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImport={bulkImportWords}
-        existingEnglishWords={words.map((w) => w.english)}
-      />
-
-      {/* Auth Modal */}
-      <AuthDialog
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
-    </>
+      {/* Landing Footer */}
+      <footer className="border-t border-border/50 py-8 bg-background">
+        <div className="container max-w-7xl mx-auto px-4 sm:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <BrandLogo variant="mark" height={10} />
+            <span>© {new Date().getFullYear()} HanziBank. All rights reserved.</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/login" className="hover:text-foreground transition-colors">
+              Log In
+            </Link>
+            <Link href="/bank" className="hover:text-foreground transition-colors">
+              Word Bank
+            </Link>
+            <Link href="/review" className="hover:text-foreground transition-colors">
+              Flip Cards
+            </Link>
+            <Link href="/matching" className="hover:text-foreground transition-colors">
+              Matching Game
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
